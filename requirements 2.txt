@@ -1,0 +1,13 @@
+streamlit>=1.36
+pandas>=2.2
+numpy>=1.26
+sqlmodel>=0.0.21
+SQLAlchemy>=2.0
+pydantic>=2.7
+reportlab>=4.0
+Pillow>=10.2
+openpyxl>=3.1
+cairosvg>=2.7
+lxml>=5.2
+opencv-python-headless>=4.9
+shapely>=2.0
