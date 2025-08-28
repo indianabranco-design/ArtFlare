@@ -1,0 +1,6 @@
+streamlit
+sqlmodel
+sqlalchemy
+pydantic
+reportlab
+pandas
