@@ -1,9 +1,11 @@
 import streamlit as st
 from sqlmodel import select
 from app.db import get_session, Quote, QuoteItem, Client, Material, Service, Settings
-from app.utils import Margins, price_with_tiered_margin, add_border_to_item
+from app.utils import Margins, price_with_tiered_margin, add_border_to_item, money_input
 from datetime import datetime, date, timedelta
 from app.pdf_utils import gerar_pdf_orcamento
+
+import app.utils  # ativa patch global de number_input (vírgula/ponto; sem saltos)
 
 import os
 import json
@@ -100,8 +102,18 @@ with st.expander("Informação do cliente", expanded=True):
 descricao = st.text_area("Descrição (aparece no PDF)")
 foto = st.file_uploader("FOTOGRAFIA CONCEPTUAL DO TRABALHO (opcional)", type=["png","jpg","jpeg"]) 
 data_entrega = st.date_input("Data de entrega", value=date.today())
-desc_percent = st.number_input("Desconto global (%)", min_value=0.0, max_value=99.0, value=0.0, step=1.0)
-iva_input = st.number_input("IVA (%)", min_value=0.0, max_value=99.0, value=float(cfg.vat_rate), step=1.0)
+desc_percent = money_input("Desconto global (%)", key="hdr_desc_percent", default=0.0)
+# clamp 0..99
+try:
+    desc_percent = max(0.0, min(99.0, float(desc_percent or 0.0)))
+except Exception:
+    desc_percent = 0.0
+
+iva_input = money_input("IVA (%)", key="hdr_iva_percent", default=float(cfg.vat_rate or 0.0))
+try:
+    iva_input = max(0.0, min(99.0, float(iva_input or 0.0)))
+except Exception:
+    iva_input = float(cfg.vat_rate or 0.0)
 
 # Se já houver rascunho, detetar alterações de cabeçalho e oferecer aplicação automática
 try:
@@ -289,7 +301,11 @@ if sel:
     service_machine = getattr(obj, 'machine_type', '') if kind == 'SERVICO' else '—'
     ink_ml_input = 0.0
     if kind == 'SERVICO' and service_machine == 'UV':
-        ink_ml_input = st.number_input("Tinta consumida (ml)", min_value=0.0, value=0.0, step=0.5, help="Só para serviços de Máquina UV")
+        ink_ml_input = money_input("Tinta consumida (ml)", key="ink_ml_input", default=0.0)
+        try:
+            ink_ml_input = max(0.0, float(ink_ml_input or 0.0))
+        except Exception:
+            ink_ml_input = 0.0
     # Unidade e nome na língua
     unidade_default = getattr(obj,'unidade', None) or ("cm²" if (getattr(obj,'largura_cm',0) * getattr(obj,'altura_cm',0) > 0) else ("min" if kind=="SERVICO" else "PC"))
     unidade_opts = ["cm²", "min", "PC"]
@@ -301,15 +317,24 @@ if sel:
 
     # Dimensões e quantidade
     if unidade == "cm²":
-        largura = st.number_input("Largura (cm)", min_value=0.0, value=0.0)
-        altura = st.number_input("Altura (cm)", min_value=0.0, value=0.0)
+        largura = money_input("Largura (cm)", key="largura_cm", default=0.0)
+        altura = money_input("Altura (cm)", key="altura_cm", default=0.0)
+        try:
+            largura = max(0.0, float(largura or 0.0))
+            altura = max(0.0, float(altura or 0.0))
+        except Exception:
+            largura, altura = 0.0, 0.0
         largura_i, altura_i = add_border_to_item(largura, altura)
         base_area = max(0.0, float(getattr(obj,'largura_cm',0)) * float(getattr(obj,'altura_cm',0)))
         used_area = largura_i * altura_i
         percent_uso = min(10000.0, (used_area/base_area*100.0) if base_area>0 and used_area>0 else 0.0)
     else:
         largura = 0.0; altura = 0.0; percent_uso = 100.0
-    quantidade = st.number_input("Quantidade", min_value=1.0, value=1.0, step=1.0)
+    quantidade = money_input("Quantidade", key="quantidade", default=1.0)
+    try:
+        quantidade = max(1.0, float(quantidade or 1.0))
+    except Exception:
+        quantidade = 1.0
 
     # Preços base
     preco_unit = getattr(obj, 'preco_cliente_un', None) or getattr(obj, 'preco_cliente', 0.0)
@@ -556,9 +581,23 @@ if st.session_state['current_quote_id']:
                             st.caption(f"🖨️ Tinta UV: {float(getattr(it,'ink_ml',0.0)):.1f} ml")
                     except Exception:
                         pass
-                    new_qtd = c2.number_input("Qtd", min_value=0.0, value=float(it.quantidade or 0.0), step=1.0, key=f"q_{it.id}")
-                    new_pct = c3.number_input("% uso", min_value=0.0, value=float(it.percent_uso or 0.0), step=1.0, key=f"p_{it.id}")
-                    new_desc = c4.number_input("Desc €", min_value=0.0, value=float(it.desconto_item or 0.0), step=1.0, key=f"d_{it.id}")
+                    new_qtd = money_input("Qtd", key=f"q_{it.id}", default=float(it.quantidade or 0.0))
+                    try:
+                        new_qtd = max(0.0, float(new_qtd or 0.0))
+                    except Exception:
+                        new_qtd = float(it.quantidade or 0.0)
+
+                    new_pct = money_input("% uso", key=f"p_{it.id}", default=float(it.percent_uso or 0.0))
+                    try:
+                        new_pct = max(0.0, float(new_pct or 0.0))
+                    except Exception:
+                        new_pct = float(it.percent_uso or 0.0)
+
+                    new_desc = money_input("Desc €", key=f"d_{it.id}", default=float(it.desconto_item or 0.0))
+                    try:
+                        new_desc = max(0.0, float(new_desc or 0.0))
+                    except Exception:
+                        new_desc = float(it.desconto_item or 0.0)
                     btn_save, btn_del = c5.columns(2)
                     if btn_save.button("Guardar", key=f"save_{it.id}"):
                         with get_session() as s2:

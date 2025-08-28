@@ -4,6 +4,9 @@ from typing import Optional
 from datetime import datetime, timedelta
 from pathlib import Path
 
+# Ativa patch global para inputs numéricos estáveis (st.number_input)
+import app.utils  # noqa: F401
+
 DATA_DIR = Path(__file__).resolve().parents[1] / "data"
 DATA_DIR.mkdir(parents=True, exist_ok=True)
 DB_PATH = DATA_DIR / "db.sqlite"

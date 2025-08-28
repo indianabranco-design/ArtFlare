@@ -3,6 +3,7 @@ from datetime import datetime, date
 import pandas as pd
 import streamlit as st
 from sqlmodel import select
+from app.utils import money_input
 
 
 
@@ -553,10 +554,8 @@ for o in fqs:
                         if o.get("pago_metodo") in ["", "Numerário", "Transferência", "Moeda digital", "PayPal"] else 0 ),
                 key=f"met_{o['id']}"
             )
-            pago_valor = st.number_input(
-                "Pago (€)", min_value=0.0,
-                value=float(o.get("pago_valor", 0.0)),
-                key=f"val_{o['id']}"
+            pago_valor = money_input(
+                "Pago (€)", key=f"val_{o['id']}", default=float(o.get("pago_valor", 0.0))
             )
             total_preview = get_total(o)
             pago_ok_auto = (pago_valor >= total_preview)

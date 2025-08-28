@@ -1,0 +1,23 @@
+{
+  "name": "continuacao-electron",
+  "version": "1.0.0",
+  "private": true,
+  "main": "main.js",
+  "description": "Desktop wrapper for the Streamlit app",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder"
+  },
+  "dependencies": {
+    "electron": "^29.0.0"
+  },
+  "devDependencies": {
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.continuacao.wrapper",
+    "files": [
+      "**/*"
+    ]
+  }
+}

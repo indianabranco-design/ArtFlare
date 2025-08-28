@@ -136,3 +136,38 @@ def greedy_nest(mask: Image.Image, sheet_w_cm: float, sheet_h_cm: float, dpi: in
 
     utilization = float(best_snapshot.sum())/(sw_px*sh_px) if (sw_px*sh_px)>0 else 0.0
     return preview, best_placements, best_total, utilization, (sw_px, sh_px), dpi, scale_factor
+
+# ==========================
+# Inputs numéricos robustos
+# ==========================
+import streamlit as st
+
+def _parse_float_pt(raw: str, default: float = 0.0) -> float:
+    """Converte strings com vírgula/ponto em float, tolerante a milhares.
+    Exemplos aceites: "1.234,56", "1,234.56", "1234,56", "1234.56".
+    """
+    if raw is None:
+        return float(default)
+    s = str(raw).strip().replace("\u00a0", " ").replace(" ", "")
+    # se tiver ponto e vírgula, assume milhares com ponto e decimal com vírgula
+    if "," in s and "." in s:
+        s = s.replace(".", "").replace(",", ".")
+    else:
+        s = s.replace(",", ".")
+    try:
+        return float(s)
+    except Exception:
+        return float(default)
+
+def money_input(label: str, key: str, default: float = 0.0, help: str | None = None) -> float:
+    """Campo monetário estável (sem saltos enquanto escreve) e compatível com vírgula.
+    Usa text_input por baixo e sincroniza com st.session_state.
+    """
+    txt_key = f"{key}__txt"
+    if txt_key not in st.session_state:
+        st.session_state[txt_key] = f"{float(default):.2f}"
+        st.session_state[key] = float(default)
+    raw = st.text_input(label, st.session_state[txt_key], key=txt_key, help=help)
+    val = _parse_float_pt(raw, st.session_state.get(key, default))
+    st.session_state[key] = float(val)
+    return float(val)
